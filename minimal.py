@@ -6,6 +6,9 @@ from django.core.management import execute_from_command_line
 from django.http import HttpResponse
 import numpy as np
 import jinja2
+import pandas as pd
+from bokeh.plotting import figure
+
 
 settings.configure(
     DEBUG=True,
@@ -14,18 +17,7 @@ settings.configure(
 )
 
 
-def index(request):
-    from bokeh.embed import components
-    from bokeh.plotting import figure
-    from sqlalchemy import create_engine
-    import pandas as pd
-
-    CONNECTION = "sqlite:///newrbogus-dev.db"
-    engine = create_engine(CONNECTION)
-
-    simulated = pd.read_sql_query("""SELECT * FROM "Simulated" """, engine)
-
-    template = jinja2.Template("""
+template = jinja2.Template("""
 <!DOCTYPE html>
 <html lang="en-US">
 
@@ -50,24 +42,31 @@ def index(request):
 </html>
 """)
 
-    hist, edges = np.histogram(simulated['app_mag'], bins=15)
 
-    # create a new plot with a title and axis labels
+def plot_figure01(engine):
+
+    simulated = pd.read_sql_query("""SELECT * FROM "Simulated" """, engine)
+    hist, edges = np.histogram(simulated['app_mag'], bins=15)
     p = figure(x_axis_label=r'mag', y_axis_label=r'N(m) dm',
                y_axis_type="log",
                tools="save",
               )
-
     p.quad(top=hist, bottom=0.5, left=edges[:-1], right=edges[1:],
-           fill_color="#036564", line_color="#033649")
+           line_color='black')
 
-    # x = [1, 2, 3, 4, 5]
-    # y = [6, 7, 2, 4, 5]
+    return p
 
-    # p = figure(title="simple line example", x_axis_label='x', y_axis_label='y')
-    # p.line(x, y, legend="Temperature", line_width=2)
 
-    script, div = components(p)
+def index(request):
+    from bokeh.embed import components
+    from sqlalchemy import create_engine
+
+    CONNECTION = "sqlite:///newrbogus-dev.db"
+    engine = create_engine(CONNECTION)
+
+    p1 = plot_figure01(engine)
+
+    script, div = components(p1)
 
     html_page = template.render(script=script, div=div)
 
@@ -80,3 +79,5 @@ urlpatterns = [
 
 if __name__ == '__main__':
     execute_from_command_line(sys.argv)
+
+
