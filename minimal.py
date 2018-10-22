@@ -54,11 +54,11 @@ def index(request):
 
     # create a new plot with a title and axis labels
     p = figure(x_axis_label=r'mag', y_axis_label=r'N(m) dm',
-               #ry_axis_type="log",
+               y_axis_type="log",
                tools="save",
               )
 
-    p.quad(top=hist, bottom=0, left=edges[:-1], right=edges[1:],
+    p.quad(top=hist, bottom=0.5, left=edges[:-1], right=edges[1:],
            fill_color="#036564", line_color="#033649")
 
     # x = [1, 2, 3, 4, 5]
@@ -70,7 +70,6 @@ def index(request):
     script, div = components(p)
 
     html_page = template.render(script=script, div=div)
-    print(html_page)
 
     return HttpResponse(html_page)
 
