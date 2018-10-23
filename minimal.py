@@ -8,6 +8,7 @@ import numpy as np
 import jinja2
 import pandas as pd
 from bokeh.plotting import figure
+from bokeh.models import HoverTool, ColumnDataSource
 
 
 settings.configure(
@@ -43,17 +44,31 @@ template = jinja2.Template("""
 """)
 
 
-def plot_figure01(engine):
-
+def make_dataset_fig01(engine):
     simulated = pd.read_sql_query("""SELECT * FROM "Simulated" """, engine)
     hist, edges = np.histogram(simulated['app_mag'], bins=15)
-    p = figure(x_axis_label=r'mag', y_axis_label=r'N(m) dm',
-               y_axis_type="log",
-               tools="save",
-              )
-    p.quad(top=hist, bottom=0.5, left=edges[:-1], right=edges[1:],
-           line_color='black')
+    simulated_mags = pd.DataFrame({'N': hist, 'left': edges[:-1], 'right': edges[1:]})
+    simulated_mags['f_N'] = ["{:d}".format(n) for n in simulated_mags['N']]
+    simulated_mags['f_interval'] = ["From {:.2f} to {:.2f}".format(l, r)
+                                    for l, r in zip(simulated_mags['left'], simulated_mags['right'])]
+    return ColumnDataSource(simulated_mags)
 
+
+def make_plot_fig01(data_src):
+    p = figure(plot_width=700, plot_height=700,
+               title=r'Simulated Magnitudes',
+                  x_axis_label=r'Mags', y_axis_label='N(m) dm',
+                  y_axis_type="log",
+               tools='save')
+    # Quad glyphs to create a histogram
+    p.quad(source=data_src, bottom=0.5, top='N', left='left', right='right',
+           fill_alpha=0.7, hover_fill_alpha=1.0, line_color='black')
+
+    # Hover tool with vline mode
+    hover = HoverTool(tooltips=[('Mag interval', '@f_interval'),
+                                ('N', '@f_N')],
+                      mode='vline')
+    p.add_tools(hover)
     return p
 
 
@@ -64,7 +79,8 @@ def index(request):
     CONNECTION = "sqlite:///newrbogus-dev.db"
     engine = create_engine(CONNECTION)
 
-    p1 = plot_figure01(engine)
+    src = make_dataset_fig01(engine)
+    p1 = make_plot_fig01(src)
 
     script, div = components(p1)
 
@@ -77,7 +93,6 @@ urlpatterns = [
     url(r'', index),
 ]
 
+
 if __name__ == '__main__':
     execute_from_command_line(sys.argv)
-
-
